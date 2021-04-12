@@ -1,565 +1,236 @@
-# Udacity Azure ML Nanodegree Capstone Project - Loan Application Prediction Classifier
+# Capstone Project: Azure Machine Learning Engineer
 
-## Overview
-This Capstone project is part of the Udacity Azure ML Nanodegree.
-In this project, I used a loan Application Prediction dataset from Kaggle to build a loan application prediction classifier. The classification goal is to predict if a loan application will be approved or denied given the applicant's credit history and other social economic demographic data.
+This is the Capstone project (last of the three projects) required for fulfillment of the Nanodegree Machine Learning Engineer with Microsoft Azure from Udacity. In this project, we use a dataset external to Azure ML ecosystem. 
 
-I built two models, one using AutoML and one, custom model. The AutoML is equipped to train and produce the best model on its own, while the custom model leverages HyperDrive to tune training hyperparameters to deliver the best model. Between the AutoML and Hyperdrive experiment runs, a best performing model was selected for deployment. Scoring requests were then sent to the deployment endpoint to test the deployed model.
-
-The diagram below provides an overview of the workflow:
-![workflow](assets/MLworkflow.png)
-
-## Project Set Up and Installation
-To set up this project, you will need the following 5 items:
-> * an Azure Machine Learning Workspace with Python SDK installed
->
-> * the two project notebooks named `automl` and `hyperparameter_tuning`
->
-> * the python script file named `train.py`
->
-> * the conda environment yaml file `conda_env.yml` and scoring script `score.py`
->
-To run the project,
-> * upload all the 5 items to a jupyter notebook compute instance in the AML workspace and place them in the _**same folder**_
->
-> * open the `automl` notebook and run each code cell _**in turn**_ from Section 1 thru 3, _**stop right before**_ Section 4 `Model Deployment`
->
-> * open the `hyperparameter_tuning` and run each code cell _**in turn**_ from Section 1 thru 3, _**stop right before**_ Section 4 `Model Deployment`
->
-> * compare the best model accuracy in `automl` and `hyperparameter_tuning` notebooks, run Section 4 `Model Deployment` from the notebook that has the _**best**_ performing model
->
+Azure Machine Learning Service and Jupyter Notebook is used to train models using both Hyperdrive and Auto ML and then the best of these models is deployed as an HTTP REST endpoint. The model endpoint is also tested to verify if it is working as intented by sending an HTTP POST request. Azure ML Studio graphical interface is not used in the entire exercise to encourage use of code which is better suited for automation and gives a data scientist more control over their experiment.
 
 ## Dataset
+
 ### Overview
-The **external** dataset is the `train_u6lujuX_CVtuZ9i.csv` of this [kaggle Loan Prediction Problem Dataset](https://www.kaggle.com/altruistdelhite04/loan-prediction-problem-dataset) which I downloaded and staged on this [Github Repo](https://raw.githubusercontent.com/atan4583/datasets/master/train.csv).
+In this dataset, we predict divorce among couples by using the Divorce Predictors Scale (DPS) on the basis of [Gottman couples therapy](https://www.gottman.com/blog/an-introduction-to-the-gottman-method-of-relationship-therapy/). The data was collected from seven different regions of Turkey, predominantly from the Black Sea region. Of the participants, 84 (49%) were divorced and 86 (51%) were married couples. Divorced participants answered the scale items by considering their marriages whereas, of the married participants, only those with happy marriages, without any thought of divorce, were included in the study.
+
+The dataset consists of 170 rows/records/examples and 54 features/attributes/columns. Attribute columns are labeled as `Atr1` to `Atr54`, `Class` column predicts the divorce, a value of `1` means couple would end up in divorce. You can read further about the dataset [here](https://dergipark.org.tr/en/pub/nevsosbilen/issue/46568/549416)
+
+Download dataset from [here](https://archive.ics.uci.edu/ml/datasets/Divorce+Predictors+data+set)
+
 
 ### Task
-The task is to train a loan prediction classifier using the dataset. The **classification goal is to predict if a loan application will be approved or denied**.
 
-The dataset has 613 records and 13 columns. The input variables are the columns carrying the credit history and other social economics demographics of the applicants. The output variable `Loan Status` column indicates if a loan application is approved or denied, i.e. a True (1) or False (0).
+As we have to predict either of two states (Divorce/No Divorce), this problem is a Classification one. The 54 features that we will use for prediction are described below. Each feature can have a value form the list `[0, 1, 2, 3, 4]`.
+
+1. If one of us apologizes when our discussion deteriorates, the discussion ends.
+2. I know we can ignore our differences, even if things get hard sometimes.
+3. When we need it, we can take our discussions with my spouse from the beginning and correct it.
+4. When I discuss with my spouse, to contact him will eventually work.
+5. The time I spent with my wife is special for us.
+6. We don't have time at home as partners.
+7. We are like two strangers who share the same environment at home rather than family.
+8. I enjoy our holidays with my wife.
+9. I enjoy traveling with my wife.
+10. Most of our goals are common to my spouse.
+11. I think that one day in the future, when I look back, I see that my spouse and I have been in harmony with each other.
+12. My spouse and I have similar values in terms of personal freedom.
+13. My spouse and I have similar sense of entertainment.
+14. Most of our goals for people (children, friends, etc.) are the same.
+15. Our dreams with my spouse are similar and harmonious.
+16. We're compatible with my spouse about what love should be.
+17. We share the same views about being happy in our life with my spouse
+18. My spouse and I have similar ideas about how marriage should be
+19. My spouse and I have similar ideas about how roles should be in marriage
+20. My spouse and I have similar values in trust.
+21. I know exactly what my wife likes.
+22. I know how my spouse wants to be taken care of when she/he sick.
+23. I know my spouse's favorite food.
+24. I can tell you what kind of stress my spouse is facing in her/his life.
+25. I have knowledge of my spouse's inner world.
+26. I know my spouse's basic anxieties.
+27. I know what my spouse's current sources of stress are.
+28. I know my spouse's hopes and wishes.
+29. I know my spouse very well.
+30. I know my spouse's friends and their social relationships.
+31. I feel aggressive when I argue with my spouse.
+32. When discussing with my spouse, I usually use expressions such as ‘you always’ or ‘you never’ .
+33. I can use negative statements about my spouse's personality during our discussions.
+34. I can use offensive expressions during our discussions.
+35. I can insult my spouse during our discussions.
+36. I can be humiliating when we discussions.
+37. My discussion with my spouse is not calm.
+38. I hate my spouse's way of open a subject.
+39. Our discussions often occur suddenly.
+40. We're just starting a discussion before I know what's going on.
+41. When I talk to my spouse about something, my calm suddenly breaks.
+42. When I argue with my spouse, ı only go out and I don't say a word.
+43. I mostly stay silent to calm the environment a little bit.
+44. Sometimes I think it's good for me to leave home for a while.
+45. I'd rather stay silent than discuss with my spouse.
+46. Even if I'm right in the discussion, I stay silent to hurt my spouse.
+47. When I discuss with my spouse, I stay silent because I am afraid of not being able to control my anger.
+48. I feel right in our discussions.
+49. I have nothing to do with what I've been accused of.
+50. I'm not actually the one who's guilty about what I'm accused of.
+51. I'm not the one who's wrong about problems at home.
+52. I wouldn't hesitate to tell my spouse about her/his inadequacy.
+53. When I discuss, I remind my spouse of her/his inadequacy.
+54. I'm not afraid to tell my spouse about her/his incompetence.
 
 ### Access
-The dataset was downloaded from this [Github Repo](https://raw.githubusercontent.com/atan4583/datasets/master/train.csv) where I have staged it for direct download to the AML workspace using SDK.
 
-Once the dataset was downloaded, SDK was again used to clean and split the data into training and validation datasets, which were then stored as Pandas dataframes in memory to facilitate quick data exploration and query, and registered as [AML TabularDatasets](https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.data.tabulardataset?view=azure-ml-py) in the workspace to enable remote access by the AutoML experiment running on a remote compute cluster.
+The dataset has been uploaded into this github repository and it can be accessed using the link as below:
 
-The dataset after downloaded and registered into the workspace looks like this:
-![seedds](assets/LoanPred-DS.png)
+https://raw.githubusercontent.com/khalidw/Capstone-Project-Azure-Machine-Learning-Engineer/master/divorce.csv
 
-Datasets in the workspace after the cleannig, splitting and registration steps:
-
-![allds](assets/All-DS.png)
+We used method `from_delimited_files('webURL')` of the `TabularDatasetFactory` Class to retreive data from the csv file (link provided above).
 
 ## Automated ML
-The AutoML experiment run was executed with this AutoMLConfig settings:
-```python
-automl_settings = {
-    "experiment_timeout_minutes": 30,
-    "max_concurrent_iterations": 4,
-    "primary_metric" : 'accuracy',
-}
 
-automl_config = AutoMLConfig(
-    task='classification',
-    max_cores_per_iteration=-1,
-    featurization='auto',
-    iterations=30,
-    enable_early_stopping=True,
-    compute_target=compute_cluster,
-    debug_log = 'automl_errors.log',
-    training_data=train_ds,
-    validation_data=valid_ds,
-    label_column_name='y',
-    **automl_settings)
-```
-A classification task with auto featurization, early stopping policy, up to 4 concurrent iterations, experiment timeout of 30 minutes and primary metric of `accuracy` was executed 30 times, using a training and a validation [TabularDataset](https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.data.tabulardataset?view=azure-ml-py) and `label_column_name` set to `y` (i.e. Loan Status).
+Configuration and settings used for the Automated ML experiment are described in the table below:
 
-The [settings and experiment configuration](https://docs.microsoft.com/en-us/python/api/azureml-train-automl-client/azureml.train.automl.automlconfig.automlconfig?view=azure-ml-py#parameters) were chosen in consideration of such factors like:
+Configuration | Description | Value
+------------- | ----------- | -----
+experiment_timeout_minutes | This is used as an exit criteria, it defines how long, in minutes, your experiment should continue to run | 20
+max_concurrent_iterations | Represents the maximum number of iterations that would be executed in parallel | 5
+primary_metric | The metric that Automated Machine Learning will optimize for model selection | accuracy
+task | The type of task to run. Values can be 'classification', 'regression', or 'forecasting' depending on the type of automated ML problem | classification
+compute_target | The compute target to run the experiment on | trainCluster
+training_data | Training data, contains both features and label columns | ds
+label_column_name | The name of the label column | Class
+n_cross_validations | No. of cross validations to perform | 5 
 
-> * classification is the best suited task to use with the dataset
-> * `accuracy` as the primary metric for apple to apple comparison with the HyperDrive trained best model
-> * enable early termination to terminate poorly performing runs and improves computational efficiency
-> * iterations (_the total number of different algorithm and parameter combinations to test during an automated ML experiment_) of 30 to ensure the experiment can fit in the chosen experiment timeout limit of 30 minutes
+### Results
 
-The experiment ran on a remote compute cluster with the progress tracked real time using the `RunDetails` widget as shown below:
+In our experiment we found out `SparseNormalizer GradientBoosting` to be the best model based on the accuracy metric. The accuracy score for this models was `0.9882352941176471`.
 
-![automlrundtls](assets/AutoMLexp-RunDetails.png)
+The parameters for the model `SparseNormalizer GradientBoosting` are described in the table below.
 
-The experiment run took slightly over 21 minutes to finish:
+`SparseNormalizer`
 
-![automlexp](assets/AutoMLexp-Done.png)
+Parameters | Values
+---------- | ------
+copy | True
+norm | max
 
-### Resutls
-The best model generated by AutoML experiment run was the `VotingEnsemble` model:
+`GradientBoosting`
 
-![automlbm](assets/AutoMLexp-TopModel.png)
+Parameters | Values
+---------- | ------
+ccp_alpha | 0.0
+criterion | mse
+init | None
+learning_rate | 0.1
+loss | deviance
+max_depth | 3
+max_features | sqrt
+max_leaf_nodes | None
+min_impurity_decrease | 0.0
+min_impurity_split | None
+min_samples_leaf | 0.08736842105263157
+min_samples_split | 0.15052631578947367
+min_weight_fraction_leaf | 0.0
+n_estimators | 25
+n_iter_no_change | None
+presort | deprecated
+random_state | None
+subsample | 0.8105263157894737
+tol | 0.0001
+validation_fraction | 0.1
+verbose | 0
+warm_start | False
 
-The `VotingEnsemble` model, with an accuracy of **_81.82%_**, consisted of the weighted results of 7 voting classifers as shown here:
+**Improvements for autoML**
 
-![vealgowgt](assets/AutoMLexp-VEAlgoWgt.png)
+1. Change experiment timeout, this would allow for more model experimentation but the longer runs may cost you more.
+1. We could use different primary metric as sometimes accuracy alone doesn't represent true picture of the model performance.
+1. Incresing the number of cross validations may reduce the bias in the model.
 
-The key parameters of the `VotingEnsemble` model:
+### AutoML Screenshots
 
-![veparam](assets/AutoMLexp-VEkeyParam.png)
+**Run Details Widget**
 
-Details and metrics of the `VotingEnsemble` model:
+![autoML_runDetails](Images/autoML_runDetails.png)
 
-![vedtls](assets/AutoMLexp-VEDtls.png)
-![vemetr1](assets/AutoMLexp-VEMetrics-1.png)
-![vemetr2](assets/AutoMLexp-VEMetrics-2.png)
-![vemetr3](assets/AutoMLexp-VEMetrics-3.png)
-![vemetr4](assets/AutoMLexp-VEMetrics-4.png)
+![autoML_runDetails_accuracy](Images/autoML_accuracy.png)
 
-The AutoML experiment also generated a visual model interpretation which is useful in understanding why a model made a certain prediction as well as getting an idea of the importance of individual features for tasks.
+**Best Model**
 
-![modelexpl1](assets/AutoMLexp-Explain-1.png)
-![modelexpl2](assets/AutoMLexp-Explain-2.png)
-![modelexpl3](assets/AutoMLexp-Explain-3.png)
-![modelexpl4](assets/AutoMLexp-Explain-4.png)
-
-Naturally, the `VotingEnsemble` model was saved and registered as the best model from the AutoML experiment run:
-
-![automlmoddnld](assets/AutoMLexp-BestModelDnldReg.png)
-
-![automlmodreg1](assets/AutoMLexp-BestModelReg.png)
-![automlmodreg2](assets/AutoMLexp-BestModelRegDtl.png)
+![autoML_bestModel](Images/autoML_bestModel.png)
 
 ## Hyperparameter Tuning
-The HyperDrive experiment run was configured with [parameter settings](https://docs.microsoft.com/en-us/python/api/azureml-train-core/azureml.train.hyperdrive.hyperdriveconfig?view=azure-ml-py#parameters) as follows:
-> * define a conda environment YAML file
->   ```python
->   %%writefile conda_env.yml
->   dependencies:
->   - python=3.6.2
->   - pip:
->     - azureml-train-automl-runtime==1.18.0
->     - inference-schema
->     - azureml-interpret==1.18.0
->     - azureml-defaults==1.18.0
->   - numpy>=1.16.0,<1.19.0
->   - pandas==0.25.1
->   - scikit-learn==0.22.1
->   - py-xgboost<=0.90
->   - fbprophet==0.5
->   - holidays==0.9.11
->   - psutil>=5.2.2,<6.0.0
->   channels:
->   - anaconda
->   - conda-forge
->   ```
->
-> * create a sklearn AML environment
->   ```python
->   sklearn_env = Environment.from_conda_specification(name = 'sklearn_env', file_path = './conda_env.yml')
->   ```
->
-> * specify a parameter sampler
->   ```python
->   ps = RandomParameterSampling({'--C': uniform(0.1, 1.0), '--max_iter': choice(50,100,200)})
->   ```
->
-> * specify an early termination policy
->   ```python
->   policy = BanditPolicy(evaluation_interval=2, slack_factor=0.1)
->   ```
->
-> * specify the compute cluster, max run and number of concurrent threads
->   ```python
->   cluster = ws.compute_targets[cluster_name] # cluster_name = 'hd-ds3-v2'
->   max_run = 30
->   max_thread = 4
->   ```
->
-> * create a ScriptRunConfig for use with `train.py`
->   ```python
->   src = ScriptRunConfig(source_directory='.',
->                         compute_target=cluster,
->                         script='train.py',
->                         arguments=['--C', 1.0, '--max_iter', 100],
->                         environment=sklearn_env)
->   ```
->
-> * create a HyperDrive Config
->   ```python
->   hyperdrive_config = HyperDriveConfig(hyperparameter_sampling=ps,
->                                        primary_metric_name='Accuracy',
->                                        primary_metric_goal=PrimaryMetricGoal.MAXIMIZE,
->                                        max_total_runs=max_run,
->                                        max_concurrent_runs=max_thread,
->                                        policy=policy,
->                                        run_config=src)
->
->   ```
->
-The python training script `train.py` was executed during the experiment run. It downloaded the dataset from this [Github Repo](https://raw.githubusercontent.com/atan4583/datasets/master/train.csv), split it into train and test sets, accepted two input parameters `C` and `max_iter` (representing Regularization Strength and Max iterations respectively) for use with [Sckit-learn LogisticRegression](https://scikit-learn.org/stable/modules/generated/sklearn.linear_model.LogisticRegression.html). These were the two hyperparameters tuned by `HyperDrive` during the experiment run.
 
-The `max_current_runs` was set to 4 and `mex_total_runs` was set to 30 to ensure the experiment can fit in the chosen experiment timeout limit of 30 minutes.
+We use Logistric Regression algorithm from the SKLearn framework in conjuction with hyperDrive for hyperparameter tuning. There are two hyperparamters for this experiment, **C** and **max_iter**. **C** is the inverse regularization strength whereas max_iter is the maximum iteration to converge for the SKLearn Logistic Regression.
 
-### Benefits of the parameter sampler chosen
-The [random parameter sampler](https://docs.microsoft.com/en-us/python/api/azureml-train-core/azureml.train.hyperdrive.randomparametersampling?view=azure-ml-py) for HyperDrive supports discrete and continuous hyperparameters, as well as early termination of low-performance runs. It is simple to use,  eliminates bias and increases the accuracy of the model.
+We have used random parameter sampling to sample over a discrete set of values. Random parameter sampling is great for discovery and getting hyperparameter combinations that you would not have guessed intuitively, although it often requires more time to execute.
 
-### Benefits of the early stopping policy chosen
-The early termination policy [BanditPolicy](https://docs.microsoft.com/en-us/python/api/azureml-train-core/azureml.train.hyperdrive.banditpolicy?view=azure-ml-py&preserve-view=true#&preserve-view=truedefinition) for HyperDrive automatically terminates poorly performing runs and improves computational efficiency. It is based on slack factor/slack amount and evaluation interval and cancels runs where the primary metric is not within the specified slack factor/slack amount compared to the best performing run.
+The parameter search space used for **C** is `[1,2,3,4,5]` and for **max_iter** is `[80,100,120,150,170,200]`
 
-The experiment ran on a remote compute cluster with the progress tracked real time using the `RunDetails` widget as shown below:
+The benchmark metric (accuracy) is evaluated using hyperDrive early stopping policy. Execution of the experiment is stopped if conditions specified by the policy are met.
 
-![hdrundtl1](assets/HDexp-RunDetails.png)
-![hdrundtl2](assets/HDexp-RunDetailsVis.png)
+We have used the [BanditPolicy](https://docs.microsoft.com/en-us/python/api/azureml-train-core/azureml.train.hyperdrive.banditpolicy?view=azure-ml-py). This policy is based on slack factor/slack amount and evaluation interval. Bandit terminates runs where the primary metric is not within the specified slack factor/slack amount compared to the best performing run. This helps to improves computational efficiency.
 
-The experiment run took nearly 31 minutes (**notice** this was much _slower_ than the AutoML experiment run with the same 30 iterations and 4 concurrent threads on the same compute cluster type) to finish:
+For this experiment the configuratin used is; `evaluation_interval=1`, `slack_factor=0.2`, and `delay_evaluation=5`. This configration means that the policy would be applied to every `1*5` iteration of the pipeline and if `1.2*`value of the benchmark metric for current iteration is smaller than the best metric value so far, the run will be cancelled.
 
-![hdexp](assets/HDexp-Done.png)
+### Results
 
-### Resutls
-The best model generated by HyperDrive experiment run was `Run 4` with an accuracy of **_80.52%_**. The metrics and visulaization charts are as shown below:
+The highest accuracy that our Logistic Regression Model acheived was `0.9803921568627451`. The hyperparamteres that were used by this model are:
 
-![hdbm](assets/HDexp-topModel.png)
-![hdbmmetrunid](assets/HDexp-topModelMetrics-RunId.png)
+Hyperparameter | Value
+-------------- | -----
+Regularization Strength (C) | 2.0
+Max Iterations (max_iter) | 150
 
-![hdbmvis](assets/HDexp-RunProgressVis.png)
+**Improvements for hyperDrive**
 
-![hdbmdtl](assets/HDexp-topModelDtls.png)
+1. Use Bayesian Parameter Sampling instead of Random; Bayesian sampling tries to intelligently pick the next sample of hyperparameters, based on how the previous samples performed, such that the new sample improves the reported primary metric.
+1. We could use different primary metric as sometimes accuracy alone doesn't represent true picture of the model performance.
+1. Increasing max total runs to try a lot more combinations of hyperparameters, this would have an impact on cost too.
 
-![hdbmmetr](assets/HDexp-topModelMetricsVis.png)
+### Hyperparameter Tuning Screenshots
 
-This best mode from `Run4` was saved and registered as the best model from the HyperDrive experiment run:
+**Run Details Widget**
 
-![hdmoddnld](assets/HDexp-BestModelDnldReg.png)
+![hyperDrive_runDetails](Images/hyperDrive_runDetails.png)
 
-![hdmodreg1](assets/HDexp-BestModelReg.png)
-![hdmodreg2](assets/HDexp-BestModelRegDtl.png)
+![hyperDrive_runDetails1](Images/hyperDrive_runDetails1.png)
+
+![hyperDrive_hyperParams](Images/hyperDrive_hyperParams.png)
+
+**Best Model**
+
+![hyperDrive_bestModel](Images/hyperDrive_bestModel.png)
 
 ## Model Deployment
-The AutoML and HyperDrive experiment runs used the same dataset, number of iterations (30) and threads (4) on the same compute cluster type, yet AutoML run was more than 10 minutes faster than the HyperDrive run, as showned here:
 
-![exprundur](assets/ExpRunDuration.png)
+To deploy a Model using Azure Machine Learning Service, we need following:
+1. A trained Model
+1. Inference configuration; includes scoring script and environment
+1. Deploy configuration; includes choice of deployment (ACI, AKS or local) and cpu/gpu/memory allocation
 
-Moreover, the best model (`VotingEnsemble`) by AutoML had an accuracy of **_81.82%_**, compared with HyperDrive's **_80.52%_** as seen here:
+Scoring script is generated when a model is created. It describes the input data that model will expect and passes it to the model for prediction and returns the results. Following command can be used to retreive the scoring script; `best_run.download_file('outputs/scoring_file_v_1_0_0.py', 'scoreScript.py')`.
 
-![modeldply](assets/ModelDeployChoice.png)
+We use the environment used by the `best_run`, the environment can be retreived by `best_run.get_environment()`. We can also download the yml file associated with the environment by using: `best_run.download_file('outputs/conda_env_v_1_0_0.yml', 'envFile.yml')`
 
-The AutoML model performs better than the HyperDrive model in accuracy and run efficiency. Add other bonus features of AutoML such as model interpretation, deployment artifacts (e.g. conda environment yaml file and endpoint scoring script), the clear choice for deployment is the AutoML model.
+For deployment we used Azure Container Instances with `cpu_cores = 1` and `memory_gb = 1`
 
-The best AutoML model (`VotingEnsemble`) was already registered at the end of the AutoML experiment run using SDK like this:
-```python
-   model=best_amlrun.register_model(
-              model_name = 'automl_bestmodel',
-              model_path = './outputs/model.pkl',
-              model_framework=Model.Framework.SCIKITLEARN,
-              tags={'accuracy': best_acc},
-              description='Loan Application Prediction'
-   )
-```
-and the registered model appeared on the `Models` dashboard like so:
-![automlmodreg2](assets/AutoMLexp-BestModelRegDtl.png)
+For Inference, the data passed to the model endpoint must be in JSON format. Following commands passes the data to the model as an HTTP POST request and records the response; `response = requests.post(service.scoring_uri, test_sample, headers=headers)`
 
-To deploy the model, go to the `automl` notebook and execute the code cells below the markdown cell titled  `4.1 Deployment setup` like so:
+Screenshots below show a demonstration of sample data response from the deployed model.
 
-> * configure a deployment environment
->   ```python
->   # Download the conda environment file produced by AutoML and create an environment
->   best_amlrun.download_file('outputs/conda_env_v_1_0_0.yml', 'conda_env.yml')
->   myenv = Environment.from_conda_specification(name = 'myenv',
->                                                file_path = 'conda_env.yml')
->   ```
->
-> * configure inference config
->   ```python
->   # download the scoring file produced by AutoML
->   best_amlrun.download_file('outputs/scoring_file_v_1_0_0.py', 'score.py')
->
->   # set inference config
->   inference_config = InferenceConfig(entry_script= 'score.py',
->                                      environment=myenv)
->   ```
-> * set Aci Webservice config
->   ```python
->   aci_config = AciWebservice.deploy_configuration(cpu_cores=1, memory_gb=1, auth_enabled=True)
->   ```
+**Demo**
 
-Next, execute the code cells below the markdown cell titled `4.2 Deploy the model as a web service` in the notebook, like so:
-> * deploy the model as a web service
->   ```python
->   service = Model.deploy(workspace=ws,
->                          name='best-automl-model',
->                          models=[model],
->                          inference_config=inference_config,
->                          deployment_config=aci_config,
->                          overwrite=True)
->   ```
->
-> * wait for the deployment to finish, query the web service state
->   ```python
->   service.wait_for_deployment(show_output=True)
->   print(f'\nservice state: {service.state}\n')
->   ```
-> * print the scoring uri, swagger uri and the primary authentication key
->   ```python
->   print(f'scoring URI: \n{service.scoring_uri}\n')
->   print(f'swagger URI: \n{service.swagger_uri}\n')
->
->   pkey, skey = service.get_keys()
->   print(f'primary key: {pkey}')
->   ```
->
+![deployResults](Images/deployResults.png)
 
-After executing the above block of code cells, the model was deployed as a web service and appeared on the Endpoints dashboard like the screenshots shown below:
+**Deployed Model**
 
-![modelendpt](assets/ModelDeployEndPoint.png)
-
-![modelendptdtl](assets/ModelDeployEndPointDtls.png)
-
-![modelendptkeys](assets/ModelDeployEndPointKeys.png)
-
-![modelendpointlog](assets/ModelDeployEndPointLogs.png)
-
-To test the scoring endpoint, execute the code cells below the markdown cell titled `4.3 Testing the web service` in the notebook as shown here:
-> * prepare a sample payload
->   ```python
->   # select 2 random samples from the validation dataframe xv
->   scoring_sample = xv.sample(2)
->   y_label = scoring_sample.pop('y')
->
->   # convert the sample records to a json data file
->   scoring_json = json.dumps({'data': scoring_sample.to_dict(orient='records')})
->   print(f'{scoring_json}')
->   ```
-
-![wspayload](assets/WSTest-payload.png)
-
-> * set request headers, post the request and check the response
->   ```python
->   # Set the content type
->   headers = {"Content-Type": "application/json"}
->
->   # set the authorization header
->   headers["Authorization"] = f"Bearer {pkey}"
->
->   # post a request to the scoring uri
->   resp = requests.post(service.scoring_uri, scoring_json, headers=headers)
->
->   # print the scoring results
->   print(resp.json())
->
->   # compare the scoring results with the corresponding y label values
->   print(f'True Values: {y_label.values}')
->   ```
-
-![wsrqtrsp](assets/WSTest-rqtrsp.png)
-
-> * another way to send a request to the scoring endpoint without sending the key is to call the `run` method of the web service like so:
->   ```python
->   # another way to test the scoring uri
->   print(f'Prediction: {service.run(scoring_json)}')
->   ```
-
-![wssendpayload](assets/WSTest-sendpayload.png)
-
-Next up, optionally enable [Application Insights](https://docs.microsoft.com/en-us/azure/azure-monitor/app/app-insights-overview) by executing the code cells below the markdown cell titled `4.4 Enable Application Insights` in the  notebook, as illustrated here:
-> * enable Application Insights
->   ```python
->   # update web service to enable Application Insights
->   service.update(enable_app_insights=True)
->
->   # wait for the deployment to finish, query the web service state
->   service.wait_for_deployment(show_output=True)
->   print(f'\nservice state: {service.state}\n')
->   ```
-
-![wsupdappinsght](assets/WSUpdt-AppInsightEnable.png)
-![wsupdappinsghtpage](assets/WSUpdt-AppInsightPage.png)
-
-Application Insights collects useful data from the web service endpoint, such as
-> * Output data
->
-> * Responses
->
-> * Request rates, response times, and failure rates
->
-> * Dependency rates, response times, and failure rates
->
-> * Exceptions
->
-
-The data is useful for monitoring the endpoint. It also automatically detect performance anomalies, and includes powerful analytics tools to help you diagnose issues and to understand what users actually do with your app. It's designed to help you continuously improve performance and usability.
-
-For example, the dashboard showed the **_30_** scoring requests I sent to the endpoint with an average response time of **_312.47_** ms and **_0_** failed request:
-
-![appinsight](assets/WSUpdt-AppInsightRqst.png)
-
-To print the logs of the web service, run the code cells below the markdown cell titled `4.5 Printing the logs of the web service` in the notebook, like so:
-> * print the logs of the web service
->   ```python
->   # print the logs by calling the get_logs() function of the web service
->   print(f'webservice logs: \n{service.get_logs()}\n')
->   ```
-
-![printwslogs](assets/PrintWSLogs.png)
-
-Lastly, to run **_a demo of the active web service scoring endpoint_**, run the code cells under the markdown cell titled `4.6 Active web service endpoint Demo` in the notebook as shown here:
-
-> * prepare a sample payload
->   ```python
->   # select 3 random samples from the validation dataframe xv
->   scoring_sample = xv.sample(3)
->   y_label = scoring_sample.pop('y')
->
->   # convert the sample records to a json data file
->   scoring_json = json.dumps({'data': scoring_sample.to_dict(orient='records')})
->   print(f'{scoring_json}')
->   ```
-
-![endptdemopayload](assets/ScoringEndptDemo-payload.png)
-
-> * set request headers, post the request and check the response
->   ```python
->   # Set the content type
->   headers = {"Content-Type": "application/json"}
->
->   # set the authorization header
->   headers["Authorization"] = f"Bearer {pkey}"
->
->   # post a request to the scoring uri
->   resp = requests.post(service.scoring_uri, scoring_json, headers=headers)
->
->   # print the scoring results
->   print(resp.json())
->
->   # compare the scoring results with the corresponding y label values
->   print(f'True Values: {y_label.values}')
->
->   # another way to test the scoring uri
->   print(f'Prediction: {service.run(scoring_json)}')
->   ```
-
-![endptdemopost](assets/ScoringEndptDemo-PostRqst.png)
-
-Finally, to delete the web service deployed, run the code cells under the markdown cell titled `5. Clean Up` in the notebook:
-
-![wsdelete](assets/DeleteWS.png)
-
-### Model Deployment Notes
-* The deployment steps described above are for deploying the best AutoML model, to deploy the best HyperDrive model, simply execute the code cells under the markdown cell titled `4. Model Deployment`  section in the `hyperparameter_tuning` notebook.
-* The best model file that was used in this project deployment can be found in the [best_model](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/tree/master/Capstone-Loan-App-Prediction/best_model) folder.
-* The registered model file from the AutoML and HyperDrive experiment runs in this project can be found in the [registered_model](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/tree/master/Capstone-Loan-App-Prediction/registered_model) folder.
-* This [conda environment](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/conda_env.yml) file contains the deployment environment details and must be included in the model deployment.
-* This [scoring script](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/score.py) file contains  the functions used to initialize the deployed web service at startup and run the model using request data passed in by a client call. It must be included in the model deployment.
-
+![deployedModel](Images/deployedModel.png)
 
 ## Screen Recording
-A screencast showing:
-> * a working model
->
-> * a demo of the deployed  model
->
-> * a demo of a sample request sent to the endpoint and its response
->
-is available here:
 
-<a href="http://www.youtube.com/watch?feature=player_embedded&v=YlWKbA4l9bA
-" target="_blank"><img src="http://img.youtube.com/vi/YlWKbA4l9bA/0.jpg"
-alt="Capstone Project Screencast" width="240" height="180" border="10" /></a>
+The screencast shows the entire process of the working ML application, including a demonstration of:
 
+1. A working model
+1. Demo of the deployed model
+1. Demo of a sample request sent to the endpoint and its response
 
-## Future Project Improvements
-A small dataset was chosen for this project with the resource and time constraints of Udacity project workspace in mind. Without the constraints, we can possibly try the following improvement ideas:
-> * Increase the model training time
->
-> * Apply model interpretability of AutoML on more complex and larger datasets, to gain speed and valuable insights in feature engineering, which can in turn help to improve the model accuracy further
->
-> * Experiment with different hyperparameter sampling methods like [Gird sampling](https://docs.microsoft.com/en-us/python/api/azureml-train-core/azureml.train.hyperdrive.gridparametersampling?view=azure-ml-py&preserve-view=true) or [Bayesian sampling](https://docs.microsoft.com/en-us/python/api/azureml-train-core/azureml.train.hyperdrive.bayesianparametersampling?view=azure-ml-py&preserve-view=true) on the Scikit-learn LogicRegression model or other custom-coded machine learning models
+[![Capstone Project Azure Machine Learning Engineer](https://img.youtube.com/vi/GKzv8udPyNw/0.jpg)](https://www.youtube.com/watch?v=GKzv8udPyNw)
 
-## List of Required Screenshots
-The screenshots referenced in this README can be found in the folder named **[assets](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/tree/master/Capstone-Loan-App-Prediction/assets)**. A short description (description marked with an **_asterisk_** denotes **_mandatory_** submission screenshot) and link to each of them is listed here:
-* Common
-  - [Project Workflow Overview](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/MLworkflow.png)
-  - [Compute Instance](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/ComputeInstance.png)
-  - [Compute Clusters](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/ComputeClusters.png)
-  - [Registered Datasets](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/All-DS.png)
-  - [Registered Loan Prediction Dataset](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/LoanPred-DS.png)
-  - [Registered Loan Prediction Training Dataset](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/LoanPred-TrainDS.png)
-  - [Registered Loan Prediction Validation Dataset](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/LoanPred-ValidateDS.png)
-
-* AutoML
-  - [AutoML Experiment Run completed](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-Done.png)
-  - [AutoML RunDetails widget *](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-RunDetails.png)
-  - [AutoML Best Model *](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-TopModel.png)
-  - [AutoML Best Model with its run id *](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-BestRunID.png)
-  - [AutoML Best Model Details](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-VEDtls.png)
-  - [AutoML Best Model Training Algorithms](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-VEAlgoWgt.png)
-  - [AutoML Best Model Key Parameters](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-VEkeyParam.png)
-  - [AutoML Best Model Accuracy and Run Id](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-VEMetrics-2.png)
-  - [AutoML Best Model Estimator Details ](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-VEMetrics-3.png)
-  - [AutoML Best Model Metrics](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-VEMetrics-4.png)
-  - [AutoML Explainer: Dataset Exploration](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-Explain-1.png)
-  - [AutoML Explainer: Global Importance](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-Explain-2.png)
-  - [AutoML Explainer: Explanation Exploration](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-Explain-3.png)
-  - [AutoML Explainer: Summary Importance](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-Explain-4.png)
-  - [Saving and Registering AutoML Best Model](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-BestModelDnldReg.png)
-  - [AutoML Registered Best Model](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-BestModelReg.png)
-  - [AutoML Registered Best Model Details](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/AutoMLexp-BestModelRegDtl.png)
-
-* HyperDrive
-  - [HyperDrive Experiment Run Completion](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/HDexp-Done.png)
-  - [HyperDrive RunDetails Widget *](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/HDexp-RunDetails.png)
-  - [HyperDrive RunDetails Widget Metrics Visual *](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/HDexp-RunDetailsVis.png)
-  - [Visualization of HyperDrive Training Progress and Performance of Hyperparameter Runs * ](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/HDexp-RunProgressVis.png)
-  - [HyperDrive Best Model *](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/HDexp-topModel.png)
-  - [HyperDrive Best Model Hyperparamters and Run Id * ](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/HDexp-topModelMetrics-RunId.png)
-  - [HyperDrive Best Model Run Id and Tuned Hyperparamters *](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/HDexp-topModelDtls.png)
-  - [HyperDirve Best Model Metrics](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/HDexp-topModelMetricsVis.png)
-  - [Saving and Registering HyperDrive Best Model](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/HDexp-BestModelDnldReg.png)
-  - [HyperDrive Registered Best Model](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/HDexp-BestModelReg.png)
-  - [HyperDrive Registered Best Model Details](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/HDexp-BestModelRegDtl.png)
-
-* Deployment
-  - [AutoML and HyperDrive Experiment Run Duration Comparison ](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/ExpRunDuration.png)
-  - [Best Model Pick for Deployment ](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/ModelDeployChoice.png)
-  - [Best Model Endpoint](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/ModelDeployEndPoint.png)
-  - [Active Best Model Endpoint *](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/ModelDeployEndPointDtls.png)
-  - [Best Model EndPoint Consume](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/ModelDeployEndPointKeys.png)
-  - [Best Model Deployment logs](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/ModelDeployEndPointLogs.png)
-  - [Enable Application Insights](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/WSUpdt-AppInsightEnable.png)
-  - [Application Insights URL](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/ModelDeployUpdtAppInsight.png)
-  - [Application Insights Dashboard](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/WSUpdt-AppInsightPage.png)
-  - [Monitoring Scoring Endpoint with Application Insights](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/WSUpdt-AppInsightRqst.png)
-  - [Printing Logs of the Web Service](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/PrintWSLogs.png)
-  - [Prepare Data Payload for Testing Scoring Endpoint](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/WSTest-payload.png)
-  - [Testing Scoring Endpoint](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/WSTest-rqtrsp.png)
-  - [Alternate way for Testing Scoring Endpoint](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/WSTest-sendpayload.png)
-  - [Inference Demo: Preparing Data Payload](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/ScoringEndptDemo-payload.png)
-  - [Inference Demo: Posting Request](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/ScoringEndptDemo-PostRqst.png)
-  - [Delete Web Service](https://github.com/atan4583/Azure-ML-Engineer-Nanodegree-Project-Portfolio/blob/master/Capstone-Loan-App-Prediction/assets/DeleteWS.png)
-
-## Citations
-
-#### Project Starter Code
-[Udacity Github Repo](https://github.com/udacity/nd00333-capstone/tree/master/starter_file)
-
-#### MLEMAND ND Using Azure Machine Learning
-[Lesson 6.3 - Exercise: Hyperparameter Tuning with HyperDrive](https://youtu.be/SfFqgN1oebM)
-
-[Lesson 6.8 - Exercise: AutoML and the SDK](https://youtu.be/KM8wYoxYeX0)
-
-#### MLEMAND ND Machine Learning Operations
-[Lesson 2.5 - Exercise: Enable Security and Authentication](https://youtu.be/rsECJolX2Ns)
-
-[Lesson 2.10 - Exercise: Deploy an Azure Machine learning Model](https://youtu.be/_RKfF1D6W24)
-
-[Lesson 2.15 - Exercise: Enable Application Insights](https://youtu.be/EXGfNMMTuMY)
-
-#### Azure Machine Learning Documentation and Example Code Snippets
-[List all ComputeTarget objects within the workspace](https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.computetarget?view=azure-ml-py#list-workspace-)
-
-[Create a dataset from pandas dataframe](https://docs.microsoft.com/en-us/azure/machine-learning/how-to-create-register-datasets#create-a-dataset-from-pandas-dataframe)
-
-[Model Registration and Deployment](https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/deployment/deploy-to-cloud/model-register-and-deploy.ipynb)
-
-[Using environments](https://github.com/Azure/MachineLearningNotebooks/blob/master/how-to-use-azureml/training/using-environments/using-environments.ipynb)
-
-[AciWebservice Class](https://docs.microsoft.com/en-us/python/api/azureml-core/azureml.core.webservice.aciwebservice?view=azure-ml-py#deploy-configuration-cpu-cores-none--memory-gb-none--tags-none--properties-none--description-none--location-none--auth-enabled-none--ssl-enabled-none--enable-app-insights-none--ssl-cert-pem-file-none--ssl-key-pem-file-none--ssl-cname-none--dns-name-label-none--primary-key-none--secondary-key-none--collect-model-data-none--cmk-vault-base-url-none--cmk-key-name-none--cmk-key-version-none--vnet-name-none--subnet-name-none-)
-
-[What is Application Insights?](https://docs.microsoft.com/en-us/azure/azure-monitor/app/app-insights-overview)
-
-#### External Dataset
-[Kaggle Loan Prediction Dataset](https://www.kaggle.com/altruistdelhite04/loan-prediction-problem-dataset?select=train_u6lujuX_CVtuZ9i.csv)
+## Citation
+Yöntem, M , Adem, K , İlhan, T , Kılıçarslan, S. (2019). DIVORCE PREDICTION USING CORRELATION BASED FEATURE SELECTION AND ARTIFICIAL NEURAL NETWORKS. Nevşehir Hacı Bektaş Veli University SBE Dergisi, 9 (1), 259-273.
