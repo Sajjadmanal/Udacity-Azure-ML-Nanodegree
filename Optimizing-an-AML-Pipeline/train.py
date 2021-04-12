@@ -10,6 +10,16 @@ import pandas as pd
 from azureml.core.run import Run
 from azureml.data.dataset_factory import TabularDatasetFactory
 
+# TODO: Create TabularDataset using TabularDatasetFactory
+# Data is located at:
+# "https://automlsamplenotebookdata.blob.core.windows.net/automl-sample-notebook-data/bankmarketing_train.csv"
+data_loc = "https://automlsamplenotebookdata.blob.core.windows.net/automl-sample-notebook-data/bankmarketing_train.csv"
+ds = TabularDatasetFactory.from_delimited_files(data_loc)
+
+
+#Save model for current iteration
+
+run = Run.get_context()
 
 def clean_data(data):
     # Dict for cleaning data
@@ -36,9 +46,14 @@ def clean_data(data):
     x_df["poutcome"] = x_df.poutcome.apply(lambda s: 1 if s == "success" else 0)
 
     y_df = x_df.pop("y").apply(lambda s: 1 if s == "yes" else 0)
-    
-    return x_df, y_df 
 
+    return x_df, y_df # added this statement by myself
+    
+x, y = clean_data(ds)
+
+# TODO: Split data into train and test sets.
+
+x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3, random_state=123)
 
 def main():
     # Add arguments to script
@@ -49,30 +64,17 @@ def main():
 
     args = parser.parse_args()
 
-    run = Run.get_context()
     run.log("Regularization Strength:", np.float(args.C))
     run.log("Max iterations:", np.int(args.max_iter))
 
-    # Create TabularDataset using TabularDatasetFactory
-    # from web url:
-    # "https://automlsamplenotebookdata.blob.core.windows.net/automl-sample-notebook-data/bankmarketing_train.csv"
-
-    wurl='https://automlsamplenotebookdata.blob.core.windows.net/automl-sample-notebook-data/bankmarketing_train.csv'
-    ds = TabularDatasetFactory.from_delimited_files(wurl)
-
-    x, y = clean_data(ds)
-    
-    # Split data into train and test sets.
-    x_train, x_test, y_train, y_test = train_test_split(x, y, stratify=y, random_state=42)
-    
     model = LogisticRegression(C=args.C, max_iter=args.max_iter).fit(x_train, y_train)
 
     accuracy = model.score(x_test, y_test)
     run.log("Accuracy", np.float(accuracy))
-    
-    os.makedirs('outputs',exist_ok=True)
-    joblib.dump(model,'outputs/model.pkl')
 
-    
+    #Save model for current iteration, also include the value for C and max_iter in filename, random_state=
+    os.makedirs('outputs', exist_ok=True)
+    joblib.dump(model, 'outputs/hyperDrive_{}_{}'.format(args.C,args.max_iter))
+
 if __name__ == '__main__':
     main()
